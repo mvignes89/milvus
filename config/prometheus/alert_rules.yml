@@ -1,0 +1,25 @@
+groups:
+
+- name: alert_rules
+  rules:
+  # Alert for server down
+  - alert: NoAddRequestForPastFiveSec
+    expr: add_vectors_request_total{job="milvus_metrics"}<1
+    for: 5s
+    labels:
+      severity: page
+      
+  # Alert on CPU temperature too high
+  - alert: CPUTemperatureTooHigh
+    expr: CPU_temperature{job="milvus_metrics"}>=80
+    for: 1s
+    labels:
+     severity: page
+     
+  # Alert on GPU temperature too high
+  - alert: GPUTemperatureTooHigh
+    expr: GPU_temperature{job="milvus_metrics"}>=80
+    for: 1s
+    labels:
+      severity: page
+

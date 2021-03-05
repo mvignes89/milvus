@@ -1,0 +1,95 @@
+version: "3.9"
+services:
+  grafana:
+    image: grafana/grafana
+    ports:
+      - 3000:3000
+    links:
+      - prometheus:prometheus
+    volumes:
+      - ./config/grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
+      - ./config/grafana/dashboard.yml:/etc/grafana/provisioning/dashboards/dashboard.yml
+      - ./config/grafana/dashboard.json:/etc/grafana/provisioning/dashboards/milvus/milvus.json
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - ./config/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+    ports:
+      - 9090:9090 
+  pushgateway:
+    image: prom/pushgateway
+    ports:
+      - 9091:9091
+  alertmanager:
+    image: prom/alertmanager
+    ports:
+      - 9093:9093
+  milvusdbrw:
+    image: milvusdb/milvus:0.10.6-cpu-d022221-64ddc2
+    restart: always
+    volumes:
+      - ./data/milvus/db:/var/lib/milvus/db
+      - ./config/milvus/server_config_rw.yaml:/var/lib/milvus/conf/server_config.yaml
+      - ./data/milvus/logs:/var/lib/milvus/logs
+    depends_on:
+      - mysql
+      - mysql-status-check
+  milvusdbro:
+    image: milvusdb/milvus:0.10.6-cpu-d022221-64ddc2
+    restart: always
+    volumes:
+      - ./data/milvus/db:/var/lib/milvus/db
+      - ./config/milvus/server_config_ro.yaml:/var/lib/milvus/conf/server_config.yaml
+      - ./data/milvus/logs:/var/lib/milvus/logs
+    depends_on:
+      - mysql
+      - mysql-status-check
+  mysql-status-check:
+    build: ./check-mysql
+    env_file:
+      - ./check-mysql/check.env
+    depends_on:
+      - mysql
+  mysql:
+    image: mysql:5.7
+    env_file:
+      - ./config/mysql/mysql.env
+    volumes:
+      - ./data/mysql/db:/var/lib/mysql
+    ports:
+      - 3306:3306
+    healthcheck:
+      test: ["CMD", "sleep", "5"]
+      interval: 1s
+      timeout: 10s
+      retries: 2
+  mishards:
+    restart: always
+    image: milvusdb/mishards:0.10.6
+    ports:
+       - "19531:19531"
+       - "19532:19532"
+    volumes:
+       - ./data/milvus/db:/tmp/milvus/db
+    command: ["python", "mishards/main.py"]
+    env_file:
+      - ./config/mishards/mishards.env
+    depends_on:
+      - milvusdbrw
+      - milvusdbro
+      - mysql
+      - jaeger
+      - prometheus
+      - pushgateway
+      - alertmanager
+  jaeger:
+    image: jaegertracing/all-in-one:1.14
+    ports:
+      - "5775:5775/udp"
+      - "16686:16686"
+      - "9441:9441"
+    environment:
+      COLLECTOR_ZIPKIN_HTTP_PORT: 9411
+ 
+
