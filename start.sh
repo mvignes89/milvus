@@ -23,4 +23,4 @@ fi
 echo "Started building the docker image"
 
 #For production enviromenents we need mysql as metadata service
-docker-compose build --no-cache && docker-compose up 
+docker-compose build --no-cache && docker-compose up -d
